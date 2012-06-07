@@ -49,10 +49,12 @@
  I prefer to do this with a 3.3v Zener diode (1N5226B) and a 10kΩ resistor. Repeat this circuit for each of the
  i/o lines.
  
+<PRE>
   Out (+5) from Arduino O------Z<|---+---/\/\/\---GND
                                  |
                                  O In (~3.15v) to the NS73.
- 
+</PRE>
+
  There are other more and less robust ways to accomplish this. Note the unidirectional i/o. The NS73 never needs
  to talk back to the Ardunio which simplifies matters.
  
