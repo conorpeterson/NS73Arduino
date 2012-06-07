@@ -23,7 +23,7 @@
  calibration information.
  
  Basic use:
- (0. Copy NS73.cpp and NS73.h into your sketch folder. Make sure to #include "NS73.h" at the top of your sketch.)
+ 0. Copy NS73.cpp and NS73.h into your sketch folder. Make sure to #include "NS73.h" at the top of your sketch.
  1. Call begin() with the pins the NS73 is attached to.
  2. Call setChannel() or setFrequency().
  3. Call goOnline() to bring the transmitter online.
@@ -48,12 +48,12 @@
  To avoid this you MUST use special circuitry on the data, latch and clock lines. (TEB is OK as is).
  I prefer to do this with a 3.3v Zener diode (1N5226B) and a 10kΩ resistor. Repeat this circuit for each of the
  i/o lines.
+
+ The following diagram is going to suck when viewed in HTML -- download the code and look at this in your text editor.
  
-<PRE>
   Out (+5) from Arduino O------Z<|---+---/\/\/\---GND
                                  |
                                  O In (~3.15v) to the NS73.
-</PRE>
 
  There are other more and less robust ways to accomplish this. Note the unidirectional i/o. The NS73 never needs
  to talk back to the Ardunio which simplifies matters.
