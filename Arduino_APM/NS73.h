@@ -1,3 +1,4 @@
+/*
  Revision 1 (5/7/2012).
  Arduino driver for the Niigata Seimitsu NS73M low-power FM transmitter.
  Copyright (C) 2012 Conor Peterson (conor.p.peterson@gmail.com)
@@ -50,8 +51,8 @@
  i/o lines.
  
   Out (+5) from Arduino O------Z<|---+---/\/\/\---GND
-                                 |
-                                 O In (~3.15v) to the NS73.
+									 |
+                                     O In (~3.15v) to the NS73.
  
  There are other more and less robust ways to accomplish this. Note the unidirectional i/o. The NS73 never needs
  to talk back to the Ardunio which simplifies matters.
@@ -76,4 +77,108 @@
  Sometimes it takes multiple passes to get a good calibration for every channel. You'll know that calibration is
  complete if you can hit every channel without ever losing TEB lock.
 
+ 
  Hat tip to Lee Montgomery of Neighborhood Public Radio -- http://neighborhoodpublicradio.org
+ */ 
+
+//TODO: Always const in function declarations if possible
+//TODO: Convert global consts to static members of NS73Class.
+//TODO: Reassess what should be public and what should be private
+//TODO: Refactor everything declared static const into uppercase. (Or, move them into static members)
+//TODO: delete as many enums as possible.
+
+#ifndef _NS73_H
+#define _NS73_H
+
+#include <Arduino.h>
+
+enum	//R0 bit values
+{
+	PE   = 0,
+	PDX  = 1,
+	MUTE = 2,
+	EM   = 4,
+	EMS  = 5,
+	AG0  = 6,
+	AG1  = 7
+};
+
+static const uint8_t MAX_REG = 9;
+
+//EEPROM constants
+static const uint8_t epMagicOffset = 0x95;
+static const uint8_t epMagic = 0x56;
+static const uint8_t epCEXTableOffset = 0x96;
+
+//Default values for CEX table in EEPROM.
+static const uint8_t epCEXBand0Begins = 71;
+static const uint8_t epCEXBand1Begins = 41;
+static const uint8_t epCEXBand2Begins = 12;
+
+//Pre-calculated oscillator values baked into flash. The first entry represents 87.5 and values climb in .2 MHz increments.
+static const uint8_t MAXCHAN = 103;
+const uint16_t channels[MAXCHAN] PROGMEM = 
+{
+	10718,  10743,  10767,  10792,  10816,  10840,  10865,  10889,  10914,  10938,  10962,  10987,  //89.7
+	11011,  11036,  11060,  11084,  11109,  11133,  11158,  11182,  11207,  11231,  11255,  11280,  //92.1
+	11304,  11329,  11353,  11377,  11402,  11426,  11451,  11475,  11500,  11524,  11548,  11573,  //94.5
+	11597,  11622,  11646,  11670,  11695,  11719,  11744,  11768,  11792,  11817,  11841,  11866,  //96.9
+	11890,  11915,  11939,  11963,  11988,  12012,  12037,  12061,  12085,  12110,  12134,  12159,  //99.3
+	12183,  12208,  12232,  12256,  12281,  12305,  12330,  12354,  12378,  12403,  12427,  12452,  //101.7
+	12476,  12500,  12525,  12549,  12574,  12598,  12623,  12647,  12671,  12696,  12720,  12745,  //104.1
+	12769,  12793,  12818,  12842,  12867,  12891,  12916,  12940,  12964,  12989,  13013,  13038,  //106.5
+	13062,  13086,  13111,  13135,  13160,  13184,  13208  //107.9
+};
+
+class NS73Class
+{
+private:
+	uint8_t reg[MAX_REG];
+		
+	uint8_t sdo;
+	uint8_t sla;
+	uint8_t sck;
+	uint8_t teb;
+	uint8_t initStatus;
+		
+	uint8_t channel;
+
+	void serialReset(void);
+	void softwareReset(void);
+	void setRegisterSPI(const uint8_t address, const uint8_t value);
+	uint8_t getRegister(const uint8_t which);
+	void updateRegister(const uint8_t address, const uint8_t value);
+	void changeChannel(const uint8_t chan);
+	void setCEX(const uint8_t value);
+	void cexSeek(const uint8_t chan);
+	uint8_t cexLookup(const uint8_t chan);
+	uint8_t haveTEBLock(void);
+	uint16_t freqLookup(const uint8_t index);
+	void ModifyCEXTable(const uint8_t chan, const uint8_t value);
+	void EEPROMWrite(const uint16_t address, const uint8_t value);
+	uint8_t EEPROMRead(const uint16_t address);
+	uint8_t EEPROMInit(void);
+	uint8_t EEPROMValid(void);
+	uint8_t EEPROMReset(void);
+
+public:
+	NS73Class();
+	void begin(const uint8_t dataPin, const uint8_t clockPin, const uint8_t latchPin, const uint8_t tebPin);
+	void channelUp(void);
+	void channelDown(void);
+	void setChannel(const uint8_t to);
+	uint8_t getChannel(void);
+	void setFrequency(const uint16_t freq);
+	uint16_t getFrequency(void);
+	void goOnline();
+	void goOffline();
+	void mute(void);
+	void unMute(void);
+	void setInputAttenuation(const uint8_t to);
+	void setTXPower(const uint8_t to);
+};
+
+extern NS73Class NS73;
+
+#endif
+
