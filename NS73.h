@@ -1,5 +1,5 @@
 /*
- Revision 1 (5/7/2012).
+ Revision 2 (5/7/2012).
  Arduino driver for the Niigata Seimitsu NS73M low-power FM transmitter.
  Copyright (C) 2012 Conor Peterson (conor.p.peterson@gmail.com)
 
@@ -103,6 +103,13 @@ enum	//R0 bit values
 	AG1  = 7
 };
 
+enum
+{
+	UNINIT = 0,
+	STAGE1,
+	STAGE2
+};
+
 static const uint8_t MAX_REG = 9;
 
 //EEPROM constants
@@ -153,25 +160,26 @@ private:
 	void cexSeek(const uint8_t chan);
 	uint8_t cexLookup(const uint8_t chan);
 	uint8_t haveTEBLock(void);
-	uint16_t freqLookup(const uint8_t index);
+	uint16_t freqLookup(const uint8_t chan);
 	void ModifyCEXTable(const uint8_t chan, const uint8_t value);
 	void EEPROMWrite(const uint16_t address, const uint8_t value);
 	uint8_t EEPROMRead(const uint16_t address);
-	uint8_t EEPROMInit(void);
 	uint8_t EEPROMValid(void);
 	uint8_t EEPROMReset(void);
 
 public:
 	NS73Class();
 	void begin(const uint8_t dataPin, const uint8_t clockPin, const uint8_t latchPin, const uint8_t tebPin);
-	void channelUp(void);
-	void channelDown(void);
+	uint8_t channelUp(void);
+	uint8_t channelDown(void);
 	void setChannel(const uint8_t to);
 	uint8_t getChannel(void);
+	uint8_t getMaxChannel(void);
 	void setFrequency(const uint16_t freq);
 	uint16_t getFrequency(void);
-	void goOnline();
-	void goOffline();
+	void goOnline(void);
+	void goOffline(void);
+	uint8_t onAir(void);
 	void mute(void);
 	void unMute(void);
 	void setInputAttenuation(const uint8_t to);

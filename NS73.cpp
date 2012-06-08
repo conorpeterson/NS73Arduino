@@ -1,5 +1,5 @@
 /*
- Revision 1 (5/7/2012).
+ Revision 2 (5/7/2012).
  Arduino driver for the Niigata Seimitsu NS73M low-power FM transmitter.
  Copyright (C) 2012 Conor Peterson (conor.p.peterson@gmail.com)
  
@@ -23,18 +23,10 @@
 
 NS73Class NS73;
 
-//TESTED:
-//goOnline(), mute(), setInputAttenuation() functions tested and working.
-//CEX eeprom storage and retrieval is working.
-//cexSeek() works -- and comes up with some different values than the default range, which is OK.
-
 //TODO: Test selectable transmit power.
 //TODO: Support SPI as well as TWI. (Possible by the user providing a serial out routine?)
-//TODO: Verify that all checks against initStatus are meaningful. If they aren't, strip that bullshit out.
-//TODO: Can I take out that dumb hack for updateRegister() to catch software reset?
 //TODO: Refactor eeprom cex variable names
 //TODO: What does pilot tone do?
-//TODO: Remove sanity checks on private functions; ensure sanity checks on public functions
 
 NS73Class::NS73Class(void)
 {
@@ -55,7 +47,7 @@ NS73Class::NS73Class(void)
 	reg[7] = 0;
 	reg[8] = 0x1B;
 	
-	initStatus = 0;
+	initStatus = UNINIT;
 }
 
 void NS73Class::begin(const uint8_t dataPin, const uint8_t clockPin, const uint8_t latchPin, const uint8_t tebPin)
@@ -78,7 +70,7 @@ void NS73Class::begin(const uint8_t dataPin, const uint8_t clockPin, const uint8
 
 	channel = 0;
 	
-	initStatus = 1;
+	initStatus = STAGE1;
 	
 	serialReset();	
 	softwareReset();
@@ -86,12 +78,12 @@ void NS73Class::begin(const uint8_t dataPin, const uint8_t clockPin, const uint8
 	for(i = 0; i < MAX_REG; i++ )
 		updateRegister(i, reg[i]);
     
-	initStatus = 2;
+	initStatus = STAGE2;
 }
 
 //Bring the transmitter online. A required call.
 //TODO: Clean up, remove bitvectors and is this preemphasis stuff necessary?
-void NS73Class::goOnline()
+void NS73Class::goOnline(void)
 {
 	//Reassert registers 1 and 2
   	updateRegister(1, reg[1] ); //Forced subcarrier, pilot tone on.
@@ -102,9 +94,14 @@ void NS73Class::goOnline()
 //Take transmitter offline. Should save a little power. Implemented by zeroing
 //out the last two bits of R0, which disconnects the clock (halting the
 //digital circuit) and pulls the plug on the analog circuit.
-void NS73Class::goOffline()
+void NS73Class::goOffline(void)
 {
 	updateRegister(0, reg[0] & 0xFC);
+}
+
+uint8_t NS73Class::onAir(void)
+{
+	return (digitalRead(teb) == HIGH) ? true : false;
 }
 
 void NS73Class::changeChannel(const uint8_t chan)
@@ -113,7 +110,7 @@ void NS73Class::changeChannel(const uint8_t chan)
 	uint8_t cex;
 	uint8_t success;
 	
-	if( initStatus == 0 || chan >= MAXCHAN )
+	if( initStatus < STAGE1 || chan >= MAXCHAN )
 		return;
 
 	freq = freqLookup(chan);
@@ -135,12 +132,9 @@ void NS73Class::changeChannel(const uint8_t chan)
 //so this function only modifies CEX if necessary.
 void NS73Class::setCEX(const uint8_t value)
 {
-	if( value > 3 )
-		return;
-
 	if( (reg[8] & 0x3) != value )
 	{
-		updateRegister(8, (reg[8] & 0xFC) | value );
+		updateRegister(8, (reg[8] & 0xFC) | (value & 0x3) );
 		delay(175); //TODO: Verify this value.
 	}
 }
@@ -176,15 +170,10 @@ void NS73Class::cexSeek(const uint8_t chan)
 	}
 }
 
-//Apparently needed in both TWI and I2C modes, since it's listed outside of section 7.
+//Recommended by NS for both TWI and I2C modes.
 void NS73Class::serialReset(void)
 {
 	uint8_t i;
-	
-	//Can't check on init variable here here because this call needs to happen early to reset the serial interface.
-	//We just check to see if the pins have a value yet.
-	if( initStatus == 0)
-		return;
 	
 	//Data and clock begin high
 	digitalWrite(sdo, HIGH);
@@ -215,12 +204,11 @@ void NS73Class::serialReset(void)
 	
 	//Leave the clock low.
 	digitalWrite(sck, LOW);
-	delayMicroseconds(1000);//DEBUG
 }
 
-uint16_t NS73Class::freqLookup(const uint8_t index)
+uint16_t NS73Class::freqLookup(const uint8_t chan)
 {
-	return (index >= MAXCHAN) ? 0 : pgm_read_word(&channels[index]);
+	return pgm_read_word(&channels[chan]);
 }
 
 //Resets the software (register contents are preserved) by writing a special number to register 14.
@@ -243,7 +231,7 @@ void NS73Class::setRegisterSPI(const uint8_t address, const uint8_t value)
 	uint8_t out;
 	uint8_t i;
 	
-	if( initStatus == 0 )
+	if( initStatus < STAGE1 )
 		return;
 	
 	//The first chunk we will send to the NS73 is the address of the setting we wish to modify.
@@ -293,15 +281,12 @@ uint8_t NS73Class::haveTEBLock(void)
 {
 	uint8_t i;
 	uint8_t checkCount = 0;
-	
-	if( initStatus > 0 )
-	{ 
-		for(i = 0; i < 50; i++ )
-		{
-			if( digitalRead(teb) == HIGH )
-				checkCount++;
-			delayMicroseconds(2500);
-		}
+
+	for(i = 0; i < 50; i++ )
+	{
+		if( digitalRead(teb) == HIGH )
+			checkCount++;
+		delayMicroseconds(2500);
 	}
 	
 	return (checkCount > 25);
@@ -312,25 +297,39 @@ uint8_t NS73Class::getRegister(const uint8_t which)
 	return reg[which]; 
 }
 
-void NS73Class::channelUp(void)
+//Returns true if the channel was changed, false if not.
+uint8_t NS73Class::channelUp(void)
 {
-	if( channel < MAXCHAN - 1)
+	if( channel < MAXCHAN - 1 )
+	{
 		channel += 1;
-	
-	changeChannel(channel);
+		changeChannel(channel);
+		return true;
+	}
+	return false;
 }
 
-void NS73Class::channelDown(void)
+//Returns true if the channel was changed, false if not.
+uint8_t NS73Class::channelDown(void)
 {
 	if( channel > 0 )
+	{
 		channel -= 1;
-
-	changeChannel(channel);
+		changeChannel(channel);
+		return true;
+	}
+	return false;
 }
 
 uint8_t NS73Class::getChannel(void)
 {
 	return channel;
+}
+
+//Retrieves the size of the channel table. Note the highest usable channel is (MAXCHAN - 1).
+uint8_t NS73Class::getMaxChannel(void)
+{
+	return MAXCHAN;
 }
 
 //Returns a numeric frequency for use in e.g. driving an LCD display -- 895 = 89.5 MHz, 1077 = 107.7 MHz.
@@ -339,8 +338,10 @@ uint16_t NS73Class::getFrequency(void)
 	return 875 + (channel << 1);
 }
 
+//Set the channel by supplying a numeric frequency -- 1015 = 101.5 MHz, 903 = 90.3 MHz, etc.
 void NS73Class::setFrequency(const uint16_t freq)
 {
+	//Any bad user input here will be ignored by setChannel.
 	setChannel( (freq - 875) >> 1);
 }
 
@@ -382,8 +383,8 @@ void NS73Class::setTXPower(const uint8_t to)
 		updateRegister(2, (reg[2] & 0xFC) | to);
 }
 
-//Since the CEX table is made of packed bits, must read out the old entry
-//and modify it before writing it back.
+//Since the CEX table is arranged in packed bits, must read out the old entry
+//and modify just the relevant bits before writing it back.
 void NS73Class::ModifyCEXTable(const uint8_t chan, const uint8_t value)
 {
 	uint8_t offset = epCEXTableOffset + (chan >> 2);
@@ -419,7 +420,7 @@ void NS73Class::EEPROMWrite(const uint16_t address, const uint8_t value)
 		sei();
 }
 
-//See comment on NS73Class::EEPROMWrite for more information.
+//See comment above NS73Class::EEPROMWrite.
 uint8_t NS73Class::EEPROMRead(const uint16_t address)
 {
 	uint8_t ints = SREG & 0x80;	//Take note of whether or not interrupts are disabled.	
@@ -436,14 +437,11 @@ uint8_t NS73Class::EEPROMRead(const uint16_t address)
 }
 
 //Performs a series of logical checks on the EEPROM to verify its integrity.
-//TODO: test this function.
+//TODO: Do a checksum of the CEX table (or a checksum of full EEPROM region).
 uint8_t NS73Class::EEPROMValid(void)
 {
 	if( EEPROMRead(epMagicOffset) != epMagic )
 		return false;
-	
-	//TODO: Do a checksum of the CEX table (or a checksum of full EEPROM region).
-	
 	return true;
 }
 
@@ -456,9 +454,8 @@ uint8_t NS73Class::EEPROMReset(void)
 		
 	EEPROMWrite(epMagicOffset, epMagic);
 
-	//Populate the CEX table (entries are packed four per byte)
-	//byte offset is  (i >> 2)
-	//shift within byte is  ((i & 0x3) << 1)
+	//Populate the CEX table (entries are packed four per byte). 
+	//Byte offset is  (i >> 2), shift within byte is  ((i & 0x3) << 1)
 	for(i = 0; i < MAXCHAN; i++ )
 	{
 		if( i >= epCEXBand0Begins )
