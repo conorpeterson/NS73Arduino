@@ -25,9 +25,9 @@
  
  Basic use:
  (0. Copy NS73.cpp and NS73.h into your sketch folder. Make sure to #include "NS73.h" at the top of your sketch.)
- 1. Call begin() with the pins the NS73 is attached to.
- 2. Call setChannel() or setFrequency().
- 3. Call goOnline() to bring the transmitter online.
+ 1. Call NS73.begin() with the pins the NS73 is attached to.
+ 2. Call NS73.setFrequency() or NS73.setChannel().
+ 3. Call NS73.goOnline() to bring the transmitter online.
  4. Adjust channel as you see fit. You do not need to take the transmitter offline to change channels.
  
  Advanced use notes:
@@ -51,7 +51,7 @@
  i/o lines.
  
   Out (+5) from Arduino O------Z<|---+---/\/\/\---GND
-									 |
+                                     |
                                      O In (~3.15v) to the NS73.
  
  There are other more and less robust ways to accomplish this. Note the unidirectional i/o. The NS73 never needs
@@ -76,7 +76,6 @@
  start at channel 0, for example), clear the arduino's EEPROM, and force the chip to try all channels in sequence.
  Sometimes it takes multiple passes to get a good calibration for every channel. You'll know that calibration is
  complete if you can hit every channel without ever losing TEB lock.
-
  
  Hat tip to Lee Montgomery of Neighborhood Public Radio -- http://neighborhoodpublicradio.org
  */ 

@@ -1,5 +1,5 @@
 /*
- Revision 2 (5/7/2012).
+ Revision 2.1 (12/11/2012).
  Arduino driver for the Niigata Seimitsu NS73M low-power FM transmitter.
  Copyright (C) 2012 Conor Peterson (conor.p.peterson@gmail.com)
  
@@ -23,10 +23,8 @@
 
 NS73Class NS73;
 
-//TODO: Test selectable transmit power.
 //TODO: Support SPI as well as TWI. (Possible by the user providing a serial out routine?)
 //TODO: Refactor eeprom cex variable names
-//TODO: What does pilot tone do?
 
 NS73Class::NS73Class(void)
 {
@@ -82,13 +80,13 @@ void NS73Class::begin(const uint8_t dataPin, const uint8_t clockPin, const uint8
 }
 
 //Bring the transmitter online. A required call.
-//TODO: Clean up, remove bitvectors and is this preemphasis stuff necessary?
+//TODO: Clean up, remove bitvectors.
 void NS73Class::goOnline(void)
 {
 	//Reassert registers 1 and 2
   	updateRegister(1, reg[1] ); //Forced subcarrier, pilot tone on.
 	updateRegister(2, reg[2] );	//Unlock detect on, TX power at whatever.
-	updateRegister(0, reg[0] | _BV(PE) | _BV(EMS)); //Power on, crystal on, pre-emphasis on and at 75µS  //DEBUG: CHECK
+	updateRegister(0, reg[0] | _BV(PE) | _BV(EMS)); //Power on, crystal on, pre-emphasis on and at 75µS
 }
 
 //Take transmitter offline. Should save a little power. Implemented by zeroing
@@ -376,14 +374,14 @@ void NS73Class::setInputAttenuation(const uint8_t to)
 
 //setTXPower: set the transmission power.
 //Possible values are 1 for .5mW, 2 for 1mW, 3 for 2mW. Real-life transmission power may be much higher (!)
-//Chip defaults to the highest setting, 2 mW. //TODO: Test these settings; what about txpower 0?
+//Chip defaults to the highest setting, 2 mW.
 void NS73Class::setTXPower(const uint8_t to)
 {
 	if( to > 0 && to < 4 )
 		updateRegister(2, (reg[2] & 0xFC) | to);
 }
 
-//Since the CEX table is arranged in packed bits, must read out the old entry
+//Since the CEX table is arranged in packed bits, must read out a whole byte
 //and modify just the relevant bits before writing it back.
 void NS73Class::ModifyCEXTable(const uint8_t chan, const uint8_t value)
 {
@@ -445,7 +443,7 @@ uint8_t NS73Class::EEPROMValid(void)
 	return true;
 }
 
-//Totally resets EEPROM.
+//Totally resets EEPROM CEX table.
 uint8_t NS73Class::EEPROMReset(void)
 {
 	uint8_t i;

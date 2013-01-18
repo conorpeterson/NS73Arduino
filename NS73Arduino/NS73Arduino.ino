@@ -4,22 +4,22 @@
 #include <EEPROM.h>
 #include "NS73.h"
 
-#define channelOffset 0x20
-#define defaultFrequency 875  //87.5 MHz.
+const byte channelOffset 0x20
+const byte defaultFrequency 875  //87.5 MHz.
 
-#define onAirIndicator 13
-#define ns73DataPin    2
-#define ns73ClockPin   3
-#define ns73LatchPin   4
-#define ns73TEBPin     5
-#define downButton     8
-#define upButton       9
+const byte onAirIndicator = 13;
+const byte ns73DataPin = 2;
+const byte ns73ClockPin = 3;
+const byte ns73LatchPin = 4;
+const byte ns73TEBPin = 5;
+const byte downButton = 8;
+const byte upButton = 9;
 
 unsigned int resetCounter = 0;
 
-void setup()
+void setup(void)
 {
-  uint8_t channel;
+  byte channel;
 
   pinMode(onAirIndicator, OUTPUT);
   pinMode(downButton, INPUT);
@@ -41,7 +41,7 @@ void setup()
   NS73.goOnline();
 }
 
-void loop()
+void loop(void)
 {  
   byte down = digitalRead(downButton);
   byte up = digitalRead(upButton);
@@ -91,7 +91,7 @@ void loop()
   }
 }
 
-void saveChannel()
+void saveChannel(void)
 {
   byte channel = NS73.getChannel();
 
