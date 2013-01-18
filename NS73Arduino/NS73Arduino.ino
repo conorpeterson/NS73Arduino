@@ -4,8 +4,8 @@
 #include <EEPROM.h>
 #include "NS73.h"
 
-const byte channelOffset 0x20
-const byte defaultFrequency 875  //87.5 MHz.
+const byte channelOffset = 0x20;
+const byte defaultFrequency = 875;  //87.5 MHz.
 
 const byte onAirIndicator = 13;
 const byte ns73DataPin = 2;
