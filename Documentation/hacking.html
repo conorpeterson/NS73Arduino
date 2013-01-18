@@ -1,0 +1,45 @@
+<html>
+	<head>
+		<title>NS73M Hacking</title>
+		<link rel=StyleSheet href="apmdoc.css" type="text/css">
+	</head>
+<body>
+<div id="tableOfContents">
+	<table>
+		<tr>
+			<td class="tocHeader"><a href="index.html">Main</a></td>
+			<td class="tocHeader"><strong>Hacking</strong></td>
+			<td class="tocHeader"><a href="channelindex.html">Channel Table</a></td>
+		</tr>
+	</table>
+</div>
+<div id="content">
+	<p><h1>Hacking</h1></p>
+	<p><h2>Recommended Reading</h2></p>
+	<p>This chip can do all kinds of neat things. But before you dive in any further, there are two bits of required reading: first, the wikipedia page on <a href="http://en.wikipedia.org/wiki/Fm_broadcasting">FM broadcasting </a>. Second, the <a href="http://www.sparkfun.com/datasheets/Wireless/General/NS73_Datasheet.pdf">NS73M data sheet</a>. As datasheets go the NS73M's is quite poor and often ambiguous. To help potential transmission hackers out, I offer the following FAQ.
+
+	<p><h2>What Is CEX?</h2></p>
+	<p>CEX, or Oscillator Extension, turns out to be the stickiest part of this chip. First some technical explanation: the NS73 obtains its VHF carrier signal by implementing a small <a href="http://en.wikipedia.org/wiki/Frequency_synthesizer">frequency synthesizer</a>. The input is a 32.768 KHz crystal (supplied on the breakout board) which is then <a href="http://en.wikipedia.org/wiki/Frequency_divider">divided</a> down to 8.192KHz. It then uses a <a href="http://en.wikipedia.org/wiki/Frequency_multiplier">clock multiplied</a> <a href="http://en.wikipedia.org/wiki/Phase-locked_loop">phase-locked loop</a> to produce signals in the <a href="http://en.wikipedia.org/wiki/Vhf">VHF</a> band. The PLL has a couple of registers available for adjustment. The first are the <a href="http://en.wikipedia.org/wiki/Charge_pump">charge pumps</a>. My guess is that these control the power available to the PLL to correct itself when the output frequency needs to change. Typically you bring the main synthesizer charge pump to 80&micro;A when changing frequency and drop it back to the lower setting after it stabilizes. The status of the PLL is expressed through the TEB line: if TEB is high, the synthesizer has a good lock.</p>
+	<p>The second adjustment is CEX, or Oscillator Extension. I do not know what the underlying mechanism is, but it provides a coarse adjustment for the synthesizer. It has four settings. Higher frequencies use lower bands and vice versa. If the CEX setting is wrong for any given frequency, the synthesizer will fail to lock. The driver detects this condition and attempts to correct for it. If it successfully recovers a lock, the new setting is committed to EEPROM.</p>
+
+	<p><h2>Setting Intermediate Frequencies</h2></p>
+	<p>The NS73 can broadcast on fractional FM channels and can be made to perform frequency sweeps. To do this, you need to feed the synthesizer a 16-bit word that controls its clock multiplier. The frequency resolution is limited to 8.192kHz by the base, pre-scaled clock. The function you need to modify is <span class="code">NS73Class::changeChannel</span>.
+
+	<p><h2>Forcing CEX Calibration</h2>
+	<p>If you wish to force a total recalibration of your NS73, modify the default CEX bands to junk settings (all bands start at channel 0, for example), clear the Arduino's EEPROM, and force the chip to try all channels in sequence. Sometimes it takes several passes to get a good calibration for every channel. You'll know that calibration is complete when you can hit every channel without ever losing a TEB lock.</p>
+	
+	<p><h2>What Is Pre-Emphasis?</h3></p>
+	<p><a href="http://en.wikipedia.org/wiki/FM_broadcasting#Pre-emphasis_and_de-emphasis">Pre-emphasis</a> is a noise reduction technique applied to most FM broadcasts. Since FM noise is weighted toward high frequencies, conventional transmitters usually boost (pre-emphasize) the high frequencies before transmission and radio receivers tone them back down (de-emphasize). In the US, pre-emphasis is described as an R-C filter with a time constant of 75&micro;s or 2122Hz. Elsewhere in the world the time constant is 50&micro;s or 3183Hz.
+	
+	<p><h2>What Is Pilot Tone?</h2></p>
+	<p>The presence of a pilot tone indicates a stereo FM broadcast. To recap: in mono FM, the baseband, monaural audio signal (30-15Khz) is modulated by a VHF carrier which is then transmitted. In stereo FM, the baseband audio signal is actually <em>both channels simultaneously</em>, or L+R. The opposite, L-R, is also calculated and modulated by a 38kHz <a href="http://en.wikipedia.org/wiki/Double-sideband_suppressed_carrier">double sideband suppressed carrier</a> signal, which is inaudible to mono radios. A stereo radio can therefore reproduce both channels arithmetically. One side effect of the DSSC modulation scheme is that the receiver can't really tell whether the ultrasonic part of the transmission is junk or actual audio. So a pilot tone at 19kHz with a precise phase relationship to the L-R channel is included with stereo broadcasts not only as an indicator but also as the key to demodulate the complete audio program.</p>
+	
+	<p><h2>Can I Use The NS73's TEB Output To Light An LED?</h2></p>
+	<p>Don't. You'll cook your transmitter. The driving circuitry behind TEB is anemic and intended to convey data only. You can use it to turn on a mosfet to power an LED if you must, or you can use the <span class="code">NS73.onAir()</span> function to query the TEB line indirectly and go from there.</p>
+	
+	<p><h2>Contributing To The Project</h2></p>
+	<p>This project's GitHub page can be found at <a href="https://github.com/conorpeterson/NS73Arduino">https://github.com/conorpeterson/NS73Arduino</a>.</p>
+	
+</div>
+</body>
+</html>

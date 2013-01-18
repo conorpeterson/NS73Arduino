@@ -1,0 +1,82 @@
+<html>
+	<head>
+		<title>NS73M Arduino Driver</title>
+		<link rel=StyleSheet href="apmdoc.css" type="text/css">
+	</head>
+<body>
+<div id="tableOfContents">
+	<table>
+		<tr>
+			<td class="tocHeader"><strong>Main</strong></td>
+			<td class="tocHeader"><a href="hacking.html">Hacking</a></td>
+			<td class="tocHeader"><a href="channelindex.html">Channel Table</a></td>
+		</tr>
+	</table>
+</div>
+<div id="content">
+	<p><h1>NS73 Arduino Driver</h1></p>
+	<p>Arduino driver for the Niigata Seimitsu NS73M low-power FM transmitter. <br>Copyright &copy; 2012 Conor Peterson (<a href="mailto:conor.p.peterson@gmail.com">conor.p.peterson@gmail.com</a>)</p>
+	<p>Special thanks to Lee Montgomery of <a href="http://neighborhoodpublicradio.org">Neighborhood Public Radio</a>.
+	<p><h2>License</h2></p>
+	
+	<p>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</p>
+	
+	<p>This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+	You should have received a copy of the GNU General Public License along with this program.  If not, see <a href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>.</p>
+	
+	<p><h2>About This Driver</h2></p>
+	<p>This is an Arduino driver for the Niigata Seimitsu NS73M low-power FM transmitter. It implements frequency selection and most other interesting features of the chip including adjustable input sensitivity and transmission power, muting, and the ability to take the transmitter offline. At present it uses SPI to communicate with the NS73M, though I2C support may be possible in the future. It requires approximately 32 bytes of RAM and 30 bytes of EEPROM to store calibration information. You can obtain one of these on a <A HREF="http://www.sparkfun.com/products/8482">breakout board</A> from Sparkfun, product number #WRL-08482. The frequency range is <a href="channelindex.html">87.5 (channel 0) to 107.9 MHz (channel 102)</a>.</p>
+	
+	<p><h2>How To Use This Code</h2></p>
+	<p><ol>
+	<li>Copy NS73.cpp and NS73.h into your sketch folder. Make sure to <span class="code">#include "NS73.h"</span> at the top of your sketch.</li>
+	<li>In your sketch's <span class="code">setup()</span> function, initialize the NS73 module like this:
+
+<div class="codeblock">
+#include "NS73.h"
+#define ns73DataPin  2
+#define ns73ClockPin 3
+#define ns73LatchPin 4
+#define ns73TEBPin   5
+
+void setup()
+{
+  NS73.begin(ns73DataPin, ns73ClockPin, ns73LatchPin, ns73TEBPin);
+  NS73.setChannel(47);  //Channel 47 is 96.9 MHz.
+  NS73.goOnline();
+}
+</div></li>
+
+	<li>Change the channel in .2 MHz increments with <span class="code">NS73.channelUp()</span> and <span class="code">NS73.channelDown()</span>. For a complete table of channels, see the <a href="channelindex.html">table of channels and frequencies</a>. You don't need to take the transmitter offline to change channels. 
+	</ol></p>
+	
+	<p><h2>Additional Notes</h2></p>
+	<p><ul>
+	<li><strong>Setting by frequency:</strong> in the above example, the transmission frequency is set to 96.9, an open station in the Albuquerque area, with <span class="code">NS73.setChannel(47)</span>. If you want to obtain the frequency the transmitter is using (perhaps to show on an LCD) call <span class="code">NS73.getFrequency()</span>, which would return 969 in this case. Note the omission of a decimal point. Using the same convention, you can also set the frequency with <span class="code">NS73.setFrequency(969)</span>. Ordinarily it is not possible to set the transmitter between frequencies, but if you want to explore this possibility please see the additional <a href="hacking.html">notes on hacking</a>.</li>
+	
+	<li><strong>Calibration and EEPROM:</strong> The NS73 requires calibration in order get a channel lock. The provided calibration has been checked against several chips with good results, but may not match yours. If the NS73 library fails to get a frequency lock when changing channels, the driver will automatically cycle through some oscillator parameters. This might take two full seconds! If it succeeds, it will modify the calibration table in EEPROM so that future channel changes will happen much faster. For more information, see the <a href="hacking.html">notes on hacking</a>.</li>
+	</ul></p>
+	
+	<p><h2>Connecting to Your Arduino</h2></p>
+	<p>VCC: connect to Arduino's 3.3v power rail.</p>
+	<p>GND: connect to Arduino's ground.</p>
+	<p>TEB: connect to one of the Arduino's digital I/O pins.
+	<p>IIC: connect to ground.</p>
+	<p>DA, LA, CK: connect to Arduino digital I/O pins:
+	<div class="pullquote">
+
+	<p><strong>WARNING!</strong> The NS73 is a 3.3 volt part, but your Arduino almost certainly operates at 5 volts. This means you must take special care when connecting the clock/data/latch lines or you will cook your transmitter. This problem is pervasive with Arduino peripherals and solutions are manifold but my favorite for simple, one-way I/O lines is to use zener diodes in conjunction with resistors.
+	<p>For each I/O line you need:
+	  <ol>
+	    <li>One 3.3 volt zener diode (1N5226B)</li>
+	    <li>One standard 10k&ohm; resistor</li>
+	  </ol>
+	</p>
+
+	<p><img src="zener_level_shifter.png" class="hcenter" width=233px height=215px alt="Schematic for zener diode level shifter" ></p>
+	<p>Connect the outgoing I/O line from the Arduino to the black band leg of the zener diode. Connect the other leg of the diode to the 10K&ohm; resistor. Connect the remaining leg of the resistor to ground. Connect the appropriate I/O line on the NS73M module to the junction between the zener diode and the resistor. Repeat this circuit for data, clock and latch.</p>
+	</div>
+	</p>
+	</div>
+</body>
+</html>
